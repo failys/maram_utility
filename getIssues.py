@@ -7,7 +7,7 @@ import pymongo
 import argparse
 
 
-def addIssuesInPage(r,col):
+def addIssuesInPage(r,col,ghUser,ghPasswd):
   issues = r.json()
   for issue in issues:
     iNo = str(issue['number'])
@@ -15,7 +15,7 @@ def addIssuesInPage(r,col):
     iTitle = issue['title']
     iBody = issue['body']
     commentsTxt = []
-    cr = requests.get(issue['comments_url'],auth=HTTPBasicAuth(credentials[0],credentials[1]))
+    cr = requests.get(issue['comments_url'],auth=HTTPBasicAuth(ghUser,ghPasswd))
     if (cr.ok):
       comments = cr.json()
       for comment in comments:
@@ -23,7 +23,7 @@ def addIssuesInPage(r,col):
     else:
       print 'error getting comments for issue ' + str(iNo) + cr.text
     issueDoc = {"number" : iNo,"state" : iState, "title" : iTitle,"body" : iBody, "comments" : commentsTxt}
-    issuesCol.insert_one(issueDoc)
+    col.insert_one(issueDoc)
     print 'added ' + iState + ' issue ' + issueDoc['number'] 
     
 
@@ -37,14 +37,14 @@ def addIssues(self,ighUser,ighRepo,ghUser,ghPasswd):
   print 'Retrieving issues from ' + iUrl
   ir = requests.get(iUrl,auth=HTTPBasicAuth(ghUser,ghPasswd))
   if (ir.ok):
-    addIssuesInPage(ir,issuesCol)
+    addIssuesInPage(ir,issuesCol,ghUser,ghPasswd)
     last = False
     while (last == False):
       try:
         nextUrl = ir.links['next']['url']
         ir = requests.get(nextUrl,auth=HTTPBasicAuth(credentials[0],credentials[1]))
         if (ir.ok):
-          addIssuesInPage(ir,issuesCol)
+          addIssuesInPage(ir,issuesCol,ghUser,ghPasswd)
       except KeyError:
         last = True
   else:
