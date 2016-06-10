@@ -42,7 +42,7 @@ def addIssues(self,ighUser,ighRepo,ghUser,ghPasswd):
     while (last == False):
       try:
         nextUrl = ir.links['next']['url']
-        ir = requests.get(nextUrl,auth=HTTPBasicAuth(credentials[0],credentials[1]))
+        ir = requests.get(nextUrl,auth=HTTPBasicAuth(ghUser,ghPasswd))
         if (ir.ok):
           addIssuesInPage(ir,issuesCol,ghUser,ghPasswd)
       except KeyError:
