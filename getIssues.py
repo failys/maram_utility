@@ -7,7 +7,7 @@ import pymongo
 import argparse
 
 
-def addIssues(r,col):
+def addIssuesInPage(r,col):
   issues = r.json()
   for issue in issues:
     iNo = str(issue['number'])
@@ -27,8 +27,33 @@ def addIssues(r,col):
     print 'added ' + iState + ' issue ' + issueDoc['number'] 
     
 
+def addIssues(self,ighUser,ighRepo,ghUser,ghPasswd):
+  db = conn['maram']
+  colName = ighRepo + '_issues'
+  issuesCol = db[colName]
+  res =issuesCol.delete_many({}).deleted_count
+  print 'deleted ' + str(res) + ' documents from ' + colName + ' collection'
+  iUrl = 'https://api.github.com/repos/' + ighUser + '/' + ighRepo + '/issues?state=all'
+  print 'Retrieving issues from ' + iUrl
+  ir = requests.get(iUrl,auth=HTTPBasicAuth(ghUser,ghPasswd))
+  if (ir.ok):
+    addIssuesInPage(ir,issuesCol)
+    last = False
+    while (last == False):
+      try:
+        nextUrl = ir.links['next']['url']
+        ir = requests.get(nextUrl,auth=HTTPBasicAuth(credentials[0],credentials[1]))
+        if (ir.ok):
+          addIssuesInPage(ir,issuesCol)
+      except KeyError:
+        last = True
+  else:
+    print 'error getting issues from ' + iUrl + ' : ' + ir.text
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Retrieve issues from Github repository')
+  parser.add_argument('--f',dest='reposFile',help='&&& delimited file of users and repositories')
   parser.add_argument('--ruser',dest='ruser',help='repository user')
   parser.add_argument('--repository',dest='repo',help='repository')
   parser.add_argument('--user',dest='guser',help='github user')
@@ -38,24 +63,12 @@ if __name__ == '__main__':
   args = parser.parse_args() 
 
   conn = pymongo.MongoClient()
-  db = conn[args.dbName]
-  issuesCol = db[args.dbCol]
-  res =issuesCol.delete_many({}).deleted_count
-  print 'deleted ' + str(res) + ' documents from ' + args.dbCol + ' collection'
 
-  iUrl = 'https://api.github.com/repos/' + args.ruser + '/' + args.repo + '/issues?state=all'
-  credentials = (args.guser,args.gpasswd)
-  ir = requests.get(iUrl,auth=HTTPBasicAuth(credentials[0],credentials[1]))
-  if (ir.ok):
-    addIssues(ir,issuesCol)
-    last = False
-    while (last == False):
-      try:
-        nextUrl = ir.links['next']['url']
-        ir = requests.get(nextUrl,auth=HTTPBasicAuth(credentials[0],credentials[1]))
-        if (ir.ok):
-          addIssues(ir,issuesCol)
-      except KeyError:
-        last = True
+  if (args.reposFile != None):
+    with open(args.reposFile) as f:
+      repos = f.read().splitlines()
+      for repo in repos:
+        ghUser,ghRepo = repo.split('&&&')
+        addIssues(conn,ghUser,ghRepo,args.guser,args.gpasswd)
   else:
-    print 'error getting issues: ' + ir.text
+    addIssues(conn,args.ruser,args.repo,args.guser,args.gpasswd)
