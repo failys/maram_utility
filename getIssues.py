@@ -5,7 +5,7 @@ import json
 import requests
 import pymongo
 import argparse
-
+import subprocess
 
 def addIssuesInPage(r,col,ghUser,ghPasswd):
   issues = r.json()
@@ -27,7 +27,7 @@ def addIssuesInPage(r,col,ghUser,ghPasswd):
     print 'added ' + iState + ' issue ' + issueDoc['number'] 
     
 
-def addIssues(self,ighUser,ighRepo,ghUser,ghPasswd):
+def addIssues(self,dbName,ighUser,ighRepo,ghUser,ghPasswd):
   db = conn['maram']
   colName = ighRepo + '_issues'
   issuesCol = db[colName]
@@ -69,6 +69,8 @@ if __name__ == '__main__':
       repos = f.read().splitlines()
       for repo in repos:
         ghUser,ghRepo = repo.split('&&&')
-        addIssues(conn,ghUser,ghRepo,args.guser,args.gpasswd)
+        addIssues(conn,args.dbName,ghUser,ghRepo,args.guser,args.gpasswd)
+        exportFileName = ghRepo + '.json'
+        subprocess.check_call(['mongoexport','--db',args.dbName,'--collection',ghRepo + '_issues','--out',exportFileName])
   else:
     addIssues(conn,args.ruser,args.repo,args.guser,args.gpasswd)
